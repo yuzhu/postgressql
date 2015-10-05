@@ -2716,6 +2716,12 @@ typedef struct CreatedbStmt
 	List	   *options;		/* List of DefElem nodes */
 } CreatedbStmt;
 
+typedef struct ConvertStmt
+{
+  NodeTag type;
+  char     *mvname;
+}
+
 /* ----------------------
  *	Alter Database
  * ----------------------

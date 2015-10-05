@@ -245,7 +245,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 		CreateFdwStmt CreateForeignServerStmt CreateForeignTableStmt
 		CreateAssertStmt CreateTransformStmt CreateTrigStmt CreateEventTrigStmt
 		CreateUserStmt CreateUserMappingStmt CreateRoleStmt CreatePolicyStmt
-		CreatedbStmt DeclareCursorStmt DefineStmt DeleteStmt DiscardStmt DoStmt
+		CreatedbStmt ConvertStmt DeclareCursorStmt DefineStmt DeleteStmt DiscardStmt DoStmt
 		DropGroupStmt DropOpClassStmt DropOpFamilyStmt DropPLangStmt DropStmt
 		DropAssertStmt DropTrigStmt DropRuleStmt DropCastStmt DropRoleStmt
 		DropPolicyStmt DropUserStmt DropdbStmt DropTableSpaceStmt DropFdwStmt
@@ -817,6 +817,7 @@ stmt :
 			| CreateUserStmt
 			| CreateUserMappingStmt
 			| CreatedbStmt
+      | ConvertStmt
 			| DeallocateStmt
 			| DeclareCursorStmt
 			| DefineStmt
@@ -8797,7 +8798,20 @@ LoadStmt:	LOAD file_name
 					$$ = (Node *)n;
 				}
 		;
+/***************
+ * 
+ * CONVERT MV to TABLE
+ *
+ *****************/
 
+ConvertStmt:
+      CONVERT qualified_name
+        {
+          ConvertStmt *n = makeNode(ConvertStmt);
+          n->mvname = $2;
+          $$ = (Node *)n;
+        }
+   ;
 
 /*****************************************************************************
  *
