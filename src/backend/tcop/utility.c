@@ -573,6 +573,10 @@ standard_ProcessUtility(Node *parsetree,
 			createdb((CreatedbStmt *) parsetree);
 			break;
 
+    case T_ConvertStmt:
+      convert((ConvertStmt *) parsetree);
+      break;
+
 		case T_AlterDatabaseStmt:
 			/* no event triggers for global objects */
 			AlterDatabase((AlterDatabaseStmt *) parsetree, isTopLevel);
