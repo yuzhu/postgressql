@@ -7,6 +7,7 @@
 #include "access/xlog.h"
 #include "catalog/namespace.h"
 #include "catalog/toasting.h"
+#include "commands/convert.h"
 #include "commands/createas.h"
 #include "commands/matview.h"
 #include "commands/prepare.h"
@@ -24,5 +25,5 @@
 #include "utils/snapmgr.h"
 
 void convert(ConvertStmt *stmt) {
-		elog(ERROR, "cache lookup failed for database %s", stmt->mvname);
+		elog(LOG, "Convert Stmt for %s", stmt->relation->relname);
 }

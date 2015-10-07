@@ -2719,8 +2719,8 @@ typedef struct CreatedbStmt
 typedef struct ConvertStmt
 {
   NodeTag type;
-  char     *mvname;
-}
+  RangeVar     *relation;
+} ConvertStmt;
 
 /* ----------------------
  *	Alter Database

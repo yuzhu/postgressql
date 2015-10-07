@@ -30,6 +30,7 @@
 #include "commands/comment.h"
 #include "commands/collationcmds.h"
 #include "commands/conversioncmds.h"
+#include "commands/convert.h"
 #include "commands/copy.h"
 #include "commands/createas.h"
 #include "commands/dbcommands.h"
