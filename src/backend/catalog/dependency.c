@@ -351,6 +351,8 @@ performMultipleDeletions(const ObjectAddresses *objects,
 	{
 		const ObjectAddress *thisobj = objects->refs + i;
 
+    elog(LOG, "Object for deletion %d " , thisobj->objectId);
+
 		/*
 		 * Acquire deletion lock on each target object.  (Ideally the caller
 		 * has done this already, but many places are sloppy about it.)
@@ -365,6 +367,11 @@ performMultipleDeletions(const ObjectAddresses *objects,
 							 &depRel);
 	}
 
+
+	for (i = 0; i < targetObjects->numrefs; i++){
+		const ObjectAddress *thisobj = objects->refs + i;
+    elog(LOG, "targetlist %d ", thisobj->objectId);
+  }
 	/*
 	 * Check if deletion is allowed, and report about cascaded deletes.
 	 *
