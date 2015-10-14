@@ -162,13 +162,13 @@ static const Oid object_classes[] = {
 	TransformRelationId			/* OCLASS_TRANSFORM */
 };
 
-
 static void findDependentObjects(const ObjectAddress *object,
 					 int flags,
 					 ObjectAddressStack *stack,
 					 ObjectAddresses *targetObjects,
 					 const ObjectAddresses *pendingObjects,
 					 Relation *depRel);
+
 static void reportDependentObjects(const ObjectAddresses *targetObjects,
 					   DropBehavior behavior,
 					   int msglevel,
@@ -368,8 +368,9 @@ performMultipleDeletions(const ObjectAddresses *objects,
 	}
 
 
+  elog(LOG, "num Objects in targetlist %d ", targetObjects->numrefs);
 	for (i = 0; i < targetObjects->numrefs; i++){
-		const ObjectAddress *thisobj = objects->refs + i;
+		const ObjectAddress *thisobj = targetObjects->refs + i;
     elog(LOG, "targetlist %d ", thisobj->objectId);
   }
 	/*
@@ -474,6 +475,25 @@ deleteWhatDependsOn(const ObjectAddress *object,
 	heap_close(depRel, RowExclusiveLock);
 }
 
+void removeDependenciesForMatView(Oid objid) {
+	ScanKeyData key[3];
+	int			nkeys;
+	SysScanDesc scan;
+	HeapTuple	tup;
+  ObjectAddress object;
+	ObjectAddress otherObject;
+	ObjectAddressStack mystack;
+	ObjectAddressExtra extra;
+
+  // Assume it is a relation
+  object.classId = RelationRelationId;
+  object.objectId = objid;
+  object.objectSubId = 0;
+
+
+
+
+}
 /*
  * findDependentObjects - find all objects that depend on 'object'
  *
@@ -588,6 +608,8 @@ findDependentObjects(const ObjectAddress *object,
 		otherObject.classId = foundDep->refclassid;
 		otherObject.objectId = foundDep->refobjid;
 		otherObject.objectSubId = foundDep->refobjsubid;
+
+		elog(LOG, "%d sub id %d depends on  %d sub id %d", object->objectId, object->objectSubId, otherObject.objectId, otherObject.objectSubId);
 
 		switch (foundDep->deptype)
 		{
@@ -725,7 +747,7 @@ findDependentObjects(const ObjectAddress *object,
 	}
 
 	systable_endscan(scan);
-
+	elog(LOG, "second pass ");
 	/*
 	 * Now recurse to any dependent objects.  We must visit them first since
 	 * they have to be deleted before the current object.
@@ -765,6 +787,7 @@ findDependentObjects(const ObjectAddress *object,
 		otherObject.objectId = foundDep->objid;
 		otherObject.objectSubId = foundDep->objsubid;
 
+    elog(LOG, "%d sub id %d has a dependent on  %d sub id %d", object->objectId, object->objectSubId, otherObject.objectId, otherObject.objectSubId);
 		/*
 		 * Must lock the dependent object before recursing to it.
 		 */

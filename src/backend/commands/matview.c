@@ -114,6 +114,39 @@ SetMatViewPopulatedState(Relation relation, bool newstate)
 	CommandCounterIncrement();
 }
 
+ObjectAddress
+convertMatView(ConvertStmt *stmt) {
+	Oid			matviewOid;
+	Relation	matviewRel;
+
+	/*
+	 * Get a lock until end of transaction.
+	 */
+	matviewOid = RangeVarGetRelidExtended(stmt->relation,
+										  AccessExclusiveLock, false, false,
+										  RangeVarCallbackOwnsTable, NULL);
+	matviewRel = heap_open(matviewOid, NoLock);
+
+	/* Make sure it is a materialized view. */
+	if (matviewRel->rd_rel->relkind != RELKIND_MATVIEW)
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("\"%s\" is not a materialized view",
+						RelationGetRelationName(matviewRel))));
+
+	if (!RelationIsPopulated(matviewRel))
+		ereport(ERROR,
+				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
+				 errmsg("Materialized View must be populated before converting to a table")));
+  
+
+  DropDependencies(matviewOid);
+
+  ChangeMatviewToTable(matviewOid);
+  AllowInsertion(matviewOid);
+
+}
+
 /*
  * ExecRefreshMatView -- execute a REFRESH MATERIALIZED VIEW command
  *
