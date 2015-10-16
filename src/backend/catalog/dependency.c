@@ -475,6 +475,53 @@ deleteWhatDependsOn(const ObjectAddress *object,
 	heap_close(depRel, RowExclusiveLock);
 }
 
+static void deleteOneDependency(ObjectAddress * object, Relation *depRel, ObjectAddress *matview) {
+	ScanKeyData key[3];
+	int			nkeys;
+	SysScanDesc scan;
+	HeapTuple	tup;
+
+	ScanKeyInit(&key[0],
+				Anum_pg_depend_classid,
+				BTEqualStrategyNumber, F_OIDEQ,
+				ObjectIdGetDatum(object->classId));
+	ScanKeyInit(&key[1],
+				Anum_pg_depend_objid,
+				BTEqualStrategyNumber, F_OIDEQ,
+				ObjectIdGetDatum(object->objectId));
+	if (object->objectSubId != 0)
+	{
+		ScanKeyInit(&key[2],
+					Anum_pg_depend_objsubid,
+					BTEqualStrategyNumber, F_INT4EQ,
+					Int32GetDatum(object->objectSubId));
+		nkeys = 3;
+	}
+	else
+		nkeys = 2;
+
+
+	scan = systable_beginscan(*depRel, DependDependerIndexId, true,
+							  NULL, nkeys, key);
+
+	while (HeapTupleIsValid(tup = systable_getnext(scan)))
+	{
+		Form_pg_depend foundDep = (Form_pg_depend) GETSTRUCT(tup);
+		if (matview.objectId != foundDep->refobjid) {
+      // another object is dependent on the internal object. 
+      // Therefore creating a link between the matview object and this other object
+      // We need to remove this dependency.
+      elog(log, "deleting for matview a row from  pg_depend %d | %d -- %d | %d",
+           foundDep->classid, foundDep->objid, foundDep->refclassid, foundDep->obj);
+		  //simple_heap_delete(*depRel, &tup->t_self);
+    }
+	}
+
+  systable_endscan(scan);
+  elog(LOG, "delete one dependency end");
+
+}
+
 void removeDependenciesForMatView(Oid objid) {
 	ScanKeyData key[3];
 	int			nkeys;
@@ -482,15 +529,75 @@ void removeDependenciesForMatView(Oid objid) {
 	HeapTuple	tup;
   ObjectAddress object;
 	ObjectAddress otherObject;
-	ObjectAddressStack mystack;
 	ObjectAddressExtra extra;
+  ObjectAddresses linkObjects;
+  Relation depRel;
+
+  linkObjects = new_object_addresses();
 
   // Assume it is a relation
   object.classId = RelationRelationId;
   object.objectId = objid;
   object.objectSubId = 0;
 
+	depRel = heap_open(DependRelationId, RowExclusiveLock);
 
+	ScanKeyInit(&key[0],
+				Anum_pg_depend_refclassid,
+				BTEqualStrategyNumber, F_OIDEQ,
+				ObjectIdGetDatum(object->classId));
+	ScanKeyInit(&key[1],
+				Anum_pg_depend_refobjid,
+				BTEqualStrategyNumber, F_OIDEQ,
+				ObjectIdGetDatum(object->objectId));
+	if (object->objectSubId != 0)
+	{
+		ScanKeyInit(&key[2],
+					Anum_pg_depend_refobjsubid,
+					BTEqualStrategyNumber, F_INT4EQ,
+					Int32GetDatum(object->objectSubId));
+		nkeys = 3;
+	}
+	else
+		nkeys = 2;
+
+	scan = systable_beginscan(*depRel, DependReferenceIndexId, true,
+							  NULL, nkeys, key);
+
+	while (HeapTupleIsValid(tup = systable_getnext(scan)))
+	{
+		Form_pg_depend foundDep = (Form_pg_depend) GETSTRUCT(tup);
+
+		otherObject.classId = foundDep->classid;
+		otherObject.objectId = foundDep->objid;
+
+		switch (foundDep->deptype)
+		{
+			case DEPENDENCY_NORMAL:
+			case DEPENDENCY_EXTENSION:
+			case DEPENDENCY_AUTO:
+			case DEPENDENCY_PIN:
+				/* no problem */
+				break;
+			case DEPENDENCY_INTERNAL:
+        foundDep->objsubid;
+        add_exact_object_address(&otherObject, &linkObjects);
+        break;
+      default:
+				elog(ERROR, "unrecognized dependency type '%c' for %s",
+					 foundDep->deptype, getObjectDescription(object));
+        break;
+    }
+  }
+  systable_endscan(scan);
+
+   /* linkObjects has all the internalobjects*/
+  for (i = 0; i < linkObjects->numrefs; i++ ) {
+		const ObjectAddress *obj = &targetObjects->refs[i];
+    deleteOneDependency(obj, depRel, object);
+  }
+
+	heap_close(depRel, RowExclusiveLock);
 
 
 }
