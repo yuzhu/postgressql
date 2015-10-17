@@ -500,7 +500,8 @@ static void deleteOneDependency(const ObjectAddress * object, Relation *depRel, 
 	else
 		nkeys = 2;
 
-
+  elog (LOG, "scanning for %d | %d | %d", object->classId, 
+              object->objectId, object->objectSubId);
 	scan = systable_beginscan(*depRel, DependDependerIndexId, true,
 							  NULL, nkeys, key);
 
@@ -570,6 +571,7 @@ void removeDependenciesForMatView(Oid objid) {
 
 		otherObject.classId = foundDep->classid;
 		otherObject.objectId = foundDep->objid;
+		otherObject.objectSubId = foundDep->objsubid;
 
 		switch (foundDep->deptype)
 		{

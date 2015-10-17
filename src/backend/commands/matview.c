@@ -125,6 +125,7 @@ convertMatView(ConvertStmt *stmt) {
 	matviewOid = RangeVarGetRelidExtended(stmt->relation,
 										  AccessExclusiveLock, false, false,
 										  RangeVarCallbackOwnsTable, NULL);
+  // not locked
 	matviewRel = heap_open(matviewOid, NoLock);
 
 	/* Make sure it is a materialized view. */
@@ -141,6 +142,8 @@ convertMatView(ConvertStmt *stmt) {
   
 
   removeDependenciesForMatView(matviewOid);
+
+  heap_close(matviewRel, NoLock);
 
   //ChangeMatviewToTable(matviewOid);
   // AllowInsertion(matviewOid);

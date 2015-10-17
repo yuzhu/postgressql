@@ -65,8 +65,11 @@ convertInternal(Oid objid) {
 	heap_close(depRel, RowExclusiveLock);
 }
 
-
 void convert(ConvertStmt *stmt) {
+  convertMatView(stmt);
+}
+
+void convertOld(ConvertStmt *stmt) {
   Oid   relid; 
 	elog(LOG, "Convert Stmt for %s", stmt->relation->relname);
   // missing not ok
