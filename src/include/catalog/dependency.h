@@ -198,7 +198,7 @@ extern void record_object_address_dependencies(const ObjectAddress *depender,
 
 extern void free_object_addresses(ObjectAddresses *addrs);
 
-extern void removeDependenciesForMatView(Oid objid, Relation *depRel);
+extern void removeDependenciesForMatView(Oid objid);
 
 /* in pg_depend.c */
 

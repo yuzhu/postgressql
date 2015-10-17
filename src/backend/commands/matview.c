@@ -140,10 +140,10 @@ convertMatView(ConvertStmt *stmt) {
 				 errmsg("Materialized View must be populated before converting to a table")));
   
 
-  DropDependencies(matviewOid);
+  removeDependenciesForMatView(matviewOid);
 
-  ChangeMatviewToTable(matviewOid);
-  AllowInsertion(matviewOid);
+  //ChangeMatviewToTable(matviewOid);
+  // AllowInsertion(matviewOid);
 
 }
 
