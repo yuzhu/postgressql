@@ -69,6 +69,7 @@ static void refresh_by_match_merge(Oid matviewOid, Oid tempOid, Oid relowner,
 					   int save_sec_context);
 static void refresh_by_heap_swap(Oid matviewOid, Oid OIDNewHeap, char relpersistence);
 
+static void ChangeMatviewToTable(Oid objid);
 static void OpenMatViewIncrementalMaintenance(void);
 static void CloseMatViewIncrementalMaintenance(void);
 
@@ -143,11 +144,38 @@ convertMatView(ConvertStmt *stmt) {
 
   removeDependenciesForMatView(matviewOid);
 
+
+  ChangeMatviewToTable(matviewOid);
+
+  AllowInsertion(matviewOid);
   heap_close(matviewRel, NoLock);
 
-  //ChangeMatviewToTable(matviewOid);
-  // AllowInsertion(matviewOid);
+}
 
+static void AllowInsertion(Oid relid) {
+  // no op for now.
+}
+
+static void ChangeMatviewToTable(Oid relid) {
+  Relation pg_class_desc;
+	HeapTuple	tup;
+  Form_pg_class table_entry;
+
+	pg_class_desc = heap_open(RelationRelationId, RowExclusiveLock);
+  // find the row with the objid
+	tup = SearchSysCache1(RELOID, ObjectIdGetDatum(relid));
+	if (!HeapTupleIsValid(tup))
+		elog(ERROR, "cache lookup failed for relation %u", relid);
+  table_entry = (Form_pg_class) GETSTRUCT(tup);
+   
+	if (table_entry->relkind != RELKIND_MATVIEW)
+		elog(ERROR, "materialized view entry not as expected " );
+  table_entry->relkind = RELKIND_RELATION;
+
+  // replace it with a different type
+  
+  ReleaseSysCache(tup);
+	heap_close(pg_class_desc, RowExclusiveLock);
 }
 
 /*
