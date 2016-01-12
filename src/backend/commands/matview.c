@@ -117,6 +117,7 @@ SetMatViewPopulatedState(Relation relation, bool newstate)
 
 ObjectAddress
 convertMatView(ConvertStmt *stmt) {
+	ObjectAddress address;
 	Oid			matviewOid;
 	Relation	matviewRel;
 
@@ -125,9 +126,9 @@ convertMatView(ConvertStmt *stmt) {
 	 */
 	matviewOid = RangeVarGetRelidExtended(stmt->relation,
 										  AccessExclusiveLock, false, false,
-										  RangeVarCallbackOwnsTable, NULL);
+										  NULL, NULL);
   // not locked
-	matviewRel = heap_open(matviewOid, NoLock);
+	matviewRel = heap_open(matviewOid, AccessExclusiveLock);
 
 	/* Make sure it is a materialized view. */
 	if (matviewRel->rd_rel->relkind != RELKIND_MATVIEW)
@@ -144,11 +145,13 @@ convertMatView(ConvertStmt *stmt) {
 
   removeDependenciesForMatView(matviewOid);
 
+  heap_close(matviewRel, AccessExclusiveLock);
 
   ChangeMatviewToTable(matviewOid);
 
-  AllowInsertion(matviewOid);
-  heap_close(matviewRel, NoLock);
+	ObjectAddressSet(address, RelationRelationId, matviewOid);
+	return address;
+  // AllowInsertion(matviewOid);
 
 }
 
@@ -157,25 +160,38 @@ static void AllowInsertion(Oid relid) {
 }
 
 static void ChangeMatviewToTable(Oid relid) {
-  Relation pg_class_desc;
+  Relation pg_class_desc, targetrelation;
 	HeapTuple	tup;
   Form_pg_class table_entry;
 
-	pg_class_desc = heap_open(RelationRelationId, RowExclusiveLock);
-  // find the row with the objid
-	tup = SearchSysCache1(RELOID, ObjectIdGetDatum(relid));
-	if (!HeapTupleIsValid(tup))
-		elog(ERROR, "cache lookup failed for relation %u", relid);
-  table_entry = (Form_pg_class) GETSTRUCT(tup);
-   
-	if (table_entry->relkind != RELKIND_MATVIEW)
-		elog(ERROR, "materialized view entry not as expected " );
-  table_entry->relkind = RELKIND_RELATION;
+	
+	targetrelation = relation_open(relid, AccessExclusiveLock);
 
+	pg_class_desc = heap_open(RelationRelationId, RowExclusiveLock);
+	// the code below changes the content of the syscache, but not the pg_class table
+  // find the row with the objid
+	tup = SearchSysCacheCopy1(RELOID, ObjectIdGetDatum(relid));
+	if (!HeapTupleIsValid(tup)) {
+		elog(ERROR, "cache lookup failed for relation %u", relid);
+		return;
+  }
+  table_entry = (Form_pg_class) GETSTRUCT(tup);
+  elog(LOG, "cache entry %c %s", table_entry->relkind , table_entry->relname.data);
+
+  //print table entry??
+	if (table_entry->relkind != RELKIND_MATVIEW) {
+		elog(ERROR, "materialized view entry not as expected " );
+		return;
+  }
+
+  table_entry->relkind = RELKIND_RELATION;
+	simple_heap_update(pg_class_desc, &tup->t_self, tup);
+	CatalogUpdateIndexes(pg_class_desc, tup);
   // replace it with a different type
-  
-  ReleaseSysCache(tup);
+  heap_freetuple(tup);
+  // ReleaseSysCache(tup);
 	heap_close(pg_class_desc, RowExclusiveLock);
+	relation_close(targetrelation, AccessExclusiveLock);
 }
 
 /*

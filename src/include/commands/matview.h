@@ -29,5 +29,8 @@ extern ObjectAddress ExecRefreshMatView(RefreshMatViewStmt *stmt, const char *qu
 extern DestReceiver *CreateTransientRelDestReceiver(Oid oid);
 
 extern bool MatViewIncrementalMaintenanceIsEnabled(void);
+extern ObjectAddress convertMatView(ConvertStmt *stmt);
+
+
 
 #endif   /* MATVIEW_H */
